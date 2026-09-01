@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>원과 직선의 위치관계</title>
+<style>
+  :root{
+    --paper:#EDEAE1; --ink:#232320; --ink-soft:#5c584f;
+    --teal:#0E7C7B; --teal-soft:#cfe9e8; --coral:#D9622B; --coral-soft:#f6ddce;
+    --gold:#C89B1E; --grid:#E4E0D4; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:22px 12px 40px;}
+  .stage{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;align-items:center;}
+  h1{font-family:Georgia,"Nanum Myeongjo","Noto Serif KR",serif;
+    font-size:clamp(20px,3vw,28px);text-align:center;margin:0 0 10px;}
+  .dots{display:flex;justify-content:center;gap:8px;margin-bottom:14px;}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--grid);cursor:pointer;}
+  .dot.on{background:var(--teal);}
+
+  .page{display:none;}
+  .page.active{display:flex;}
+  .page{
+    width:min(96vw,960px);
+    aspect-ratio:16/9;
+    background:var(--card);
+    border:1px solid var(--grid);
+    border-radius:16px;
+    box-shadow:0 8px 28px rgba(35,35,32,0.10);
+    padding:clamp(18px,3vw,38px) clamp(22px,4vw,48px);
+    flex-direction:column;
+    overflow:auto;
+  }
+  .slide-title{font-family:Georgia,"Nanum Myeongjo","Noto Serif KR",serif;
+    font-size:clamp(18px,2.4vw,24px);font-weight:700;margin:0 0 4px;}
+  .slide-sub{color:var(--ink-soft);font-size:clamp(12px,1.4vw,14.5px);margin:0 0 14px;}
+
+  .qlist{flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(10px,2vw,18px);}
+  .qitem{display:flex;align-items:flex-start;gap:10px;}
+  .qnum{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+    width:clamp(22px,2.4vw,28px);height:clamp(22px,2.4vw,28px);border-radius:50%;background:var(--teal);
+    color:#fff;font-size:clamp(12px,1.4vw,14px);font-weight:700;}
+  .qtext{font-size:clamp(14px,1.9vw,18px);font-weight:600;line-height:1.5;}
+
+  .review-list{flex:1;display:flex;flex-direction:column;justify-content:center;gap:clamp(8px,1.6vw,14px);}
+  .review-item{padding-bottom:clamp(6px,1.2vw,10px);border-bottom:1px solid var(--grid);}
+  .review-item:last-child{border-bottom:none;}
+  .review-item .qtext{font-size:clamp(13px,1.6vw,16px);}
+  .review-row{display:inline-block;margin-top:6px;font-size:clamp(12px,1.4vw,14.5px);
+    padding:5px 12px;border-radius:7px;background:var(--teal-soft);color:#0a4f4e;font-weight:600;}
+
+  .nav-row{display:flex;justify-content:flex-end;margin-top:8px;}
+  button{font-family:inherit;font-size:clamp(13px,1.5vw,15px);font-weight:600;
+    padding:clamp(9px,1.4vw,12px) clamp(16px,2.4vw,24px);
+    border-radius:9px;border:1.5px solid var(--teal);background:var(--teal);color:#fff;cursor:pointer;}
+  button.ghost{background:transparent;color:var(--teal);}
+  button:disabled{opacity:.35;cursor:not-allowed;}
+
+  #page3{position:relative;}
+  .p3-sub{display:none;flex:1;flex-direction:column;}
+  .p3-sub.active{display:flex;}
+  .board-box{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--grid);
+    background:#FCFBF8;flex:1;min-height:0;}
+  canvas{display:block;width:100%;height:100%;touch-action:none;}
+  .p3-btn-row{display:flex;justify-content:center;margin-top:10px;}
+
+  .case-view{flex:1;display:flex;flex-direction:column;justify-content:center;}
+  .case-boxes{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(10px,2vw,18px);margin-bottom:14px;}
+  .case-box{border:2px solid var(--grid);border-radius:12px;padding:clamp(10px,1.8vw,18px) clamp(6px,1.4vw,12px);text-align:center;}
+  .case-box svg{width:clamp(56px,7vw,90px);height:clamp(56px,7vw,90px);margin-bottom:6px;}
+  .case-title{font-size:clamp(13px,1.7vw,18px);font-weight:700;line-height:1.35;margin-bottom:6px;}
+  .case-line{font-size:clamp(17px,2.6vw,26px);color:var(--ink);margin-top:8px;
+    font-family:Georgia,serif;font-weight:700;}
+  .case-line.hidden{display:none;}
+  .case-line b{color:var(--coral);}
+  .case-btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .case-btn-row button{flex:0 1 auto;}
+  .back-row{position:absolute;top:14px;right:18px;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div class="stage">
+  <h1>원과 직선의 위치관계</h1>
+  <div class="dots">
+    <div class="dot on" id="dot1"></div><div class="dot" id="dot2"></div><div class="dot" id="dot3"></div>
+  </div>
+
+  <!-- PAGE 1: quiz (questions only) -->
+  <div class="page active" id="page1">
+    <div class="slide-title">사전 점검</div>
+    <div class="slide-sub">이전 시간 내용을 스스로 떠올려보세요.</div>
+    <div class="qlist" id="quizList"></div>
+    <div class="nav-row"><button id="btnCheck">정답 확인</button></div>
+  </div>
+
+  <!-- PAGE 2: answers (one at a time) -->
+  <div class="page" id="page2">
+    <div class="slide-title">모범 답안</div>
+    <div class="slide-sub">각 문제의 '정답 보기'를 눌러 하나씩 확인해보세요.</div>
+    <div class="review-list" id="reviewList"></div>
+    <div class="nav-row" style="justify-content:space-between;">
+      <button class="ghost" id="btnToPage1">← 이전</button>
+      <button id="btnToPage3">다음: 원과 직선의 위치관계 →</button>
+    </div>
+  </div>
+
+  <!-- PAGE 3: interactive -->
+  <div class="page" id="page3">
+    <div class="back-row"><button class="ghost hidden" id="btnBack">← 좌표평면 다시 보기</button></div>
+
+    <div class="p3-sub active" id="view3a">
+      <div class="slide-title">직선을 움직여보세요</div>
+      <div class="slide-sub">원은 고정되어 있어요. 빨간 점 두 개를 드래그하면 직선이 움직여요.</div>
+      <div class="board-box"><canvas id="board" width="820" height="420"></canvas></div>
+      <div class="nav-row" style="justify-content:space-between;">
+        <button class="ghost" id="btnToPage2">← 이전</button>
+        <button id="btnCase">위치관계 확인하기</button>
+      </div>
+    </div>
+
+    <div class="p3-sub" id="view3b">
+      <div class="case-view">
+        <div class="case-boxes">
+          <div class="case-box">
+            <svg viewBox="0 0 90 90"><circle cx="45" cy="45" r="26" fill="none" stroke="#0E7C7B" stroke-width="3"/><line x1="3" y1="28" x2="87" y2="60" stroke="#D9622B" stroke-width="3.5"/></svg>
+            <div class="case-title">서로 다른<br>두 점에서 만난다</div>
+            <div class="case-line alg hidden">D <b>&gt;</b> 0</div>
+            <div class="case-line geo hidden">d <b>&lt;</b> r</div>
+          </div>
+          <div class="case-box">
+            <svg viewBox="0 0 90 90"><circle cx="45" cy="45" r="26" fill="none" stroke="#0E7C7B" stroke-width="3"/><line x1="3" y1="19" x2="87" y2="19" stroke="#D9622B" stroke-width="3.5"/></svg>
+            <div class="case-title">한 점에서 만난다<br>(접한다)</div>
+            <div class="case-line alg hidden">D <b>=</b> 0</div>
+            <div class="case-line geo hidden">d <b>=</b> r</div>
+          </div>
+          <div class="case-box">
+            <svg viewBox="0 0 90 90"><circle cx="45" cy="45" r="26" fill="none" stroke="#0E7C7B" stroke-width="3"/><line x1="3" y1="4" x2="87" y2="4" stroke="#D9622B" stroke-width="3.5"/></svg>
+            <div class="case-title">만나지 않는다</div>
+            <div class="case-line alg hidden">D <b>&lt;</b> 0</div>
+            <div class="case-line geo hidden">d <b>&gt;</b> r</div>
+          </div>
+        </div>
+        <div class="case-btn-row">
+          <button id="btnAlg">대수적으로 확인하기 (판별식 D)</button>
+          <button id="btnGeo">기하학적으로 확인하기 (거리 d)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const QUESTIONS=[
+  {q:"두 점 (1, 2), (3, 6)을 지나는 직선의 방정식은?", ans:"y = 2x"},
+  {q:"중심 (2, -1), 반지름 3인 원의 방정식은?", ans:"(x-2)² + (y+1)² = 9"},
+  {q:"x² + y² - 4x + 6y - 3 = 0 의 중심과 반지름은?", ans:"중심 (2, -3), 반지름 4"},
+  {q:"직선 y=2x-1과 이차함수 y=x²의 그래프의 교점의 x좌표를 구하는 식은?", ans:"2x - 1 = x²"},
+  {q:"직선과 원이 '접한다'는 것은 무엇을 의미하는가?", ans:"직선과 원이 만나는 점이 정확히 1개인 상태 (한 점에서 스치듯 만남)"}
+];
+
+// ---------- PAGE 1 ----------
+const quizList=document.getElementById('quizList');
+QUESTIONS.forEach((item,i)=>{
+  const div=document.createElement('div');
+  div.className='qitem';
+  div.innerHTML=`<span class="qnum">${i+1}</span><span class="qtext">${item.q}</span>`;
+  quizList.appendChild(div);
+});
+
+function goPage(n){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page'+n).classList.add('active');
+  [1,2,3].forEach(i=>document.getElementById('dot'+i).classList.toggle('on', i<=n));
+  if(n===3) initBoard();
+}
+[1,2,3].forEach(i=>document.getElementById('dot'+i).addEventListener('click',()=>goPage(i)));
+
+document.getElementById('btnCheck').addEventListener('click',()=>{
+  const reviewList=document.getElementById('reviewList');
+  reviewList.innerHTML='';
+  QUESTIONS.forEach((item,i)=>{
+    const div=document.createElement('div');
+    div.className='review-item';
+    div.innerHTML=`<span class="qnum">${i+1}</span> <span class="qtext">${item.q}</span>
+      <button class="ghost" id="revealBtn${i}" style="margin-left:10px;padding:5px 12px;font-size:13px;">정답 보기</button>
+      <div class="review-row hidden" id="revealAns${i}">${item.ans}</div>`;
+    reviewList.appendChild(div);
+  });
+  QUESTIONS.forEach((item,i)=>{
+    document.getElementById('revealBtn'+i).addEventListener('click',()=>{
+      document.getElementById('revealAns'+i).classList.remove('hidden');
+      document.getElementById('revealBtn'+i).disabled=true;
+    });
+  });
+  goPage(2);
+});
+document.getElementById('btnToPage1').addEventListener('click',()=>goPage(1));
+document.getElementById('btnToPage3').addEventListener('click',()=>goPage(3));
+document.getElementById('btnToPage2').addEventListener('click',()=>goPage(2));
+
+// ---------- PAGE 3 : circle fixed, line draggable (view3a), static case summary (view3b) ----------
+let boardInited=false;
+let P1={x:-13,y:-2.5}, P2={x:13,y:5.5};
+const R=4;
+
+function showView(id){
+  document.querySelectorAll('.p3-sub').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('btnBack').classList.toggle('hidden', id==='view3a');
+}
+
+document.getElementById('btnCase').addEventListener('click',()=>showView('view3b'));
+document.getElementById('btnBack').addEventListener('click',()=>showView('view3a'));
+document.getElementById('btnAlg').addEventListener('click',()=>{
+  document.querySelectorAll('.case-line.alg').forEach(el=>el.classList.remove('hidden'));
+});
+document.getElementById('btnGeo').addEventListener('click',()=>{
+  document.querySelectorAll('.case-line.geo').forEach(el=>el.classList.remove('hidden'));
+});
+
+function initBoard(){
+  if(boardInited) return;
+  boardInited=true;
+  const canvas=document.getElementById('board');
+  const ctx=canvas.getContext('2d');
+  const SCALE=22, CX=canvas.width/2, CY=canvas.height/2;
+  const marginX=18, marginY=14;
+
+  function toPx(x,y){return {px:CX+x*SCALE, py:CY-y*SCALE};}
+  function fromPx(px,py){return {x:(px-CX)/SCALE, y:(CY-py)/SCALE};}
+  function clampPx(px,py){
+    return {px:Math.max(marginX+8,Math.min(canvas.width-marginX-8,px)),
+            py:Math.max(marginY+8,Math.min(canvas.height-marginY-8,py))};
+  }
+
+  function drawGrid(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle='#E4E0D4'; ctx.lineWidth=1;
+    for(let i=-20;i<=20;i++){
+      const {px}=toPx(i,0);
+      if(px>=marginX && px<=canvas.width-marginX){ ctx.beginPath(); ctx.moveTo(px,marginY); ctx.lineTo(px,canvas.height-marginY); ctx.stroke(); }
+      const {py}=toPx(0,i);
+      if(py>=marginY && py<=canvas.height-marginY){ ctx.beginPath(); ctx.moveTo(marginX,py); ctx.lineTo(canvas.width-marginX,py); ctx.stroke(); }
+    }
+    const o=toPx(0,0);
+    ctx.strokeStyle='#232320'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(marginX+6,o.py); ctx.lineTo(canvas.width-marginX-6,o.py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(o.px,canvas.height-marginY-6); ctx.lineTo(o.px,marginY+6); ctx.stroke();
+    function arrow(x,y,ang){ ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-9,4.5); ctx.lineTo(-9,-4.5); ctx.closePath();
+      ctx.fillStyle='#232320'; ctx.fill(); ctx.restore(); }
+    arrow(canvas.width-marginX-6,o.py,0);
+    arrow(o.px,marginY+6,-Math.PI/2);
+    ctx.fillStyle='#5c584f'; ctx.font='10.5px -apple-system,sans-serif'; ctx.textAlign='center';
+    for(let i=-19;i<=19;i+=2){
+      if(i===0) continue;
+      const {px}=toPx(i,0);
+      if(px>marginX+10 && px<canvas.width-marginX-10) ctx.fillText(i,px,o.py+14);
+      const {py}=toPx(0,i);
+      if(py>marginY+10 && py<canvas.height-marginY-10){ ctx.textAlign='right'; ctx.fillText(i,o.px-6,py+4); ctx.textAlign='center'; }
+    }
+  }
+
+  function render(){
+    drawGrid();
+    const c0=toPx(0,0);
+    ctx.beginPath(); ctx.arc(c0.px,c0.py,R*SCALE,0,Math.PI*2);
+    ctx.strokeStyle='#0E7C7B'; ctx.lineWidth=2.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(c0.px,c0.py,3,0,Math.PI*2); ctx.fillStyle='#0E7C7B'; ctx.fill();
+
+    const dx=P2.x-P1.x, dy=P2.y-P1.y;
+    const len=Math.hypot(dx,dy)||1;
+    const ux=dx/len, uy=dy/len, ext=2000;
+    const s=toPx(P1.x-ux*ext/SCALE, P1.y-uy*ext/SCALE);
+    const e=toPx(P1.x+ux*ext/SCALE, P1.y+uy*ext/SCALE);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(marginX,marginY,canvas.width-marginX*2,canvas.height-marginY*2); ctx.clip();
+    ctx.beginPath(); ctx.moveTo(s.px,s.py); ctx.lineTo(e.px,e.py);
+    ctx.strokeStyle='#D9622B'; ctx.lineWidth=2.8; ctx.stroke();
+    ctx.restore();
+
+    [P1,P2].forEach(p=>{
+      const {px,py}=toPx(p.x,p.y);
+      ctx.beginPath(); ctx.arc(px,py,7,0,Math.PI*2); ctx.fillStyle='#D9622B'; ctx.fill();
+      ctx.lineWidth=2; ctx.strokeStyle='#fff'; ctx.stroke();
+    });
+  }
+
+  function getPos(e){
+    const rect=canvas.getBoundingClientRect();
+    const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
+    const cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+    const cy=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+    return {px:cx*sx, py:cy*sy};
+  }
+  let dragging=null;
+  function down(e){
+    const pos=getPos(e);
+    [['P1',P1],['P2',P2]].forEach(([key,p])=>{
+      const {px,py}=toPx(p.x,p.y);
+      if(Math.hypot(pos.px-px,pos.py-py)<18) dragging=key;
+    });
+  }
+  function move(e){
+    if(!dragging) return;
+    e.preventDefault();
+    const pos=getPos(e);
+    const c=clampPx(pos.px,pos.py);
+    const m=fromPx(c.px,c.py);
+    const target = dragging==='P1'?P1:P2;
+    target.x=m.x; target.y=m.y;
+    render();
+  }
+  function up(){dragging=null;}
+  canvas.addEventListener('mousedown',down);
+  canvas.addEventListener('mousemove',move);
+  window.addEventListener('mouseup',up);
+  canvas.addEventListener('touchstart',down,{passive:true});
+  canvas.addEventListener('touchmove',move,{passive:false});
+  window.addEventListener('touchend',up);
+
+  render();
+}
+</script>
+</body>
+</html>
